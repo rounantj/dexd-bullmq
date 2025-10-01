@@ -333,33 +333,56 @@ async function extractTitlesFromLinksWithAI(
       source: link.source,
     }));
 
-    const prompt = `Analise os links encontrados e extraia títulos descritivos para cada um.
+    // Incluir a descrição completa se disponível
+    const fullDescription = videoMetadata?.description || "";
 
-CONTEÚDO DO VÍDEO:
-${videoMetadata?.title ? `Título: ${videoMetadata.title}` : ""}
-${
-  videoMetadata?.description
-    ? `Descrição: ${videoMetadata.description?.substring(0, 500)}`
-    : ""
-}
+    const prompt = `Analise a DESCRIÇÃO DO VÍDEO e correlacione cada link encontrado com o nome/título do produto que aparece ACIMA ou PRÓXIMO de cada link na descrição.
 
-LINKS ENCONTRADOS:
+DESCRIÇÃO COMPLETA DO VÍDEO:
+${fullDescription.substring(0, 3000)}
+
+LINKS PARA CORRELACIONAR:
 ${JSON.stringify(linksInfo, null, 2)}
 
-Retorne JSON: { "links": [{ "id": 1, "url": "...", "title": "...", "type": "product", "description": "..." }] }`;
+INSTRUÇÕES IMPORTANTES:
+1. Na descrição, cada produto geralmente tem um NÚMERO, NOME DO PRODUTO e depois o LINK
+2. Exemplo: "1. Eufy Self Emptying Robot Vacuum" seguido de "https://bit.ly/42NecTd"
+3. Correlacione cada link com o nome que aparece IMEDIATAMENTE ANTES dele na descrição
+4. Use EXATAMENTE o nome que está na descrição, não invente ou altere
+5. Se não encontrar nome específico, use um nome descritivo baseado no contexto
+6. NÃO use títulos genéricos como "Product Title X"
+
+RETORNE UM JSON com esta estrutura:
+{
+  "links": [
+    {
+      "id": 1,
+      "url": "https://bit.ly/...",
+      "title": "Nome EXATO extraído da descrição",
+      "type": "product",
+      "description": "Breve descrição do produto"
+    }
+  ]
+}
+
+REGRAS:
+- Use os nomes EXATOS da descrição
+- Se o nome tiver número (ex: "1. Nome"), remova o número
+- Seja preciso na correlação link <-> nome`;
 
     const response = await openai.chat.completions.create({
       model: MODEL_SELECTED,
       messages: [
         {
           role: "system",
-          content: "Você é especialista em análise de links de produtos.",
+          content:
+            "Você é um especialista em extrair informações estruturadas de descrições de vídeos. Sua especialidade é correlacionar links com os nomes de produtos que aparecem na descrição.",
         },
         { role: "user", content: prompt },
       ],
       response_format: { type: "json_object" },
       temperature: 0.1,
-      max_tokens: 4000,
+      max_tokens: 5000,
     });
 
     const content = response.choices[0].message.content || "{}";
@@ -370,7 +393,7 @@ Retorne JSON: { "links": [{ "id": 1, "url": "...", "title": "...", "type": "prod
       return {
         ...link,
         productName: aiResult?.title || extractProductNameFromUrl(link.url),
-        type: aiResult?.type || "unknown",
+        type: aiResult?.type || "product",
         description: aiResult?.description || "",
       };
     });
@@ -379,7 +402,7 @@ Retorne JSON: { "links": [{ "id": 1, "url": "...", "title": "...", "type": "prod
     return links.map((link) => ({
       ...link,
       productName: extractProductNameFromUrl(link.url),
-      type: "unknown",
+      type: "product",
       description: "",
     }));
   }
