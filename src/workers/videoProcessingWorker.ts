@@ -162,7 +162,12 @@ function extractAllLinksFromText(text: string): string[] {
 
 function isProductLink(url: string): boolean {
   try {
-    const hostname = new URL(url).hostname.toLowerCase();
+    const urlObj = new URL(url);
+    const hostname = urlObj.hostname.toLowerCase();
+    const pathname = urlObj.pathname.toLowerCase();
+    const searchParams = urlObj.searchParams.toString().toLowerCase();
+
+    // Lista de domínios de e-commerce conhecidos
     const productDomains = [
       "amazon",
       "mercadolivre",
@@ -176,8 +181,73 @@ function isProductLink(url: string): boolean {
       "shein",
       "kabum",
       "amzn.to",
+      "amzn.com",
+      "netshoes",
+      "dafiti",
+      "zattini",
+      "walmart",
+      "carrefour",
+      "hotmart",
+      "eduzz",
+      "monetizze",
+      "pichau",
+      "terabyteshop",
     ];
-    return productDomains.some((domain) => hostname.includes(domain));
+
+    // Verificar se é um domínio de produto conhecido
+    if (productDomains.some((domain) => hostname.includes(domain))) {
+      return true;
+    }
+
+    // Verificar se é um link encurtado (muitos links de produtos são encurtados)
+    const shortenedLinkDomains = [
+      "bit.ly",
+      "tinyurl.com",
+      "goo.gl",
+      "t.co",
+      "ow.ly",
+      "is.gd",
+      "buff.ly",
+      "adf.ly",
+    ];
+    if (shortenedLinkDomains.some((domain) => hostname.includes(domain))) {
+      return true;
+    }
+
+    // Palavras-chave que indicam produto
+    const productKeywords = [
+      "product",
+      "produto",
+      "item",
+      "buy",
+      "comprar",
+      "purchase",
+      "shop",
+      "loja",
+      "store",
+      "cart",
+      "carrinho",
+      "checkout",
+      "dp/",
+      "gp/product",
+    ];
+
+    // Verificar se a URL contém palavras-chave de produto
+    const hasProductKeyword = productKeywords.some(
+      (keyword) => pathname.includes(keyword) || searchParams.includes(keyword)
+    );
+
+    // Verificar se tem parâmetros típicos de e-commerce/afiliados
+    const hasEcommerceParams = [
+      "ref=",
+      "tag=",
+      "camp=",
+      "link=",
+      "affiliate=",
+      "partner=",
+    ].some((param) => searchParams.includes(param));
+
+    return hasProductKeyword || hasEcommerceParams;
   } catch {
     return false;
   }
