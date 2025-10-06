@@ -6,8 +6,9 @@
     "scripts": {
         "build": "tsc",
         "start": "node dist/server.js",
-        "dev": "ts-node src/server.ts",
-        "dev:watch": "nodemon --exec ts-node src/server.ts",
+        "dev": "nodemon --exec ts-node src/server.ts",
+        "dev:worker": "nodemon --exec ts-node src/worker.ts",
+        "dev:producer": "nodemon --exec ts-node src/producer.ts",
         "producer": "ts-node src/producer.ts",
         "worker": "ts-node src/worker.ts"
     },

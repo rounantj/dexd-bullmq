@@ -167,6 +167,34 @@ function isProductLink(url: string): boolean {
     const pathname = urlObj.pathname.toLowerCase();
     const searchParams = urlObj.searchParams.toString().toLowerCase();
 
+    // Excluir domínios de imagens/thumbnails do YouTube e outros serviços de imagem
+    const imageOnlyDomains = [
+      "yt3.ggpht.com",
+      "yt3.googleusercontent.com",
+      "i.ytimg.com",
+      "img.youtube.com",
+      "ytimg.googleusercontent.com",
+    ];
+
+    // Excluir links de grupos de WhatsApp e Telegram
+    const socialGroupDomains = [
+      "whatsapp.com",
+      "wa.me",
+      "chat.whatsapp.com",
+      "api.whatsapp.com",
+      "t.me",
+      "telegram.me",
+      "telegram.org",
+    ];
+
+    if (imageOnlyDomains.some((domain) => hostname.includes(domain))) {
+      return false;
+    }
+
+    if (socialGroupDomains.some((domain) => hostname.includes(domain))) {
+      return false;
+    }
+
     // Lista de domínios de e-commerce conhecidos
     const productDomains = [
       "amazon",
@@ -426,43 +454,59 @@ async function analyzeVideoContentWithAI(
     const hasYouTubeData = videoMetadata?.title && videoMetadata?.description;
 
     if (hasYouTubeData) {
-      console.log("✅ [Worker]: Using YouTube API metadata + AI for tags");
+      console.log(
+        "✅ [Worker]: Using YouTube API metadata + AI for tags and summary"
+      );
 
-      // Usar IA apenas para gerar tags baseadas no conteúdo
-      const tagsPrompt = `Analise este vídeo do YouTube e gere exatamente 10 tags relevantes em português.
+      // Usar IA para gerar tags e resumo conciso
+      const summaryPrompt = `Analise este vídeo do YouTube e gere:
+1. Um resumo CONCISO e ATRATIVO da descrição (máximo 200 caracteres)
+2. Exatamente 10 tags relevantes em português
 
 Título: ${videoMetadata.title}
-Descrição: ${videoMetadata.description?.substring(0, 1000)}
+Descrição: ${videoMetadata.description?.substring(0, 1500)}
 Canal: ${videoMetadata.channelTitle || "Desconhecido"}
 
-Retorne JSON: { "tags": ["tag1", "tag2", "tag3", "tag4", "tag5", "tag6", "tag7", "tag8", "tag9", "tag10"] }
+Retorne JSON:
+{
+  "summary": "Resumo conciso e atrativo do vídeo em até 200 caracteres",
+  "tags": ["tag1", "tag2", "tag3", "tag4", "tag5", "tag6", "tag7", "tag8", "tag9", "tag10"]
+}
 
-Regras:
+Regras para o resumo:
+- Máximo 200 caracteres
+- Conciso e direto
+- Capture a essência do vídeo
+- Use linguagem atrativa
+- Foque no conteúdo principal
+
+Regras para tags:
 - Exatamente 10 tags
 - Tags em português brasileiro
 - Tags relevantes ao conteúdo`;
 
-      const tagsResponse = await openai.chat.completions.create({
+      const summaryResponse = await openai.chat.completions.create({
         model: MODEL_SELECTED,
         messages: [
           {
             role: "system",
-            content: "Você é especialista em categorização de vídeos.",
+            content: "Você é especialista em categorização e resumo de vídeos.",
           },
-          { role: "user", content: tagsPrompt },
+          { role: "user", content: summaryPrompt },
         ],
         response_format: { type: "json_object" },
         temperature: 0.3,
-        max_tokens: 500,
+        max_tokens: 800,
       });
 
-      const tagsResult = JSON.parse(
-        tagsResponse.choices[0].message.content || "{}"
+      const aiResult = JSON.parse(
+        summaryResponse.choices[0].message.content || "{}"
       );
 
       const videoInfo: any = {
         title: videoMetadata.title,
-        description: videoMetadata.description,
+        description: aiResult.summary || videoMetadata.title,
+        fullDescription: videoMetadata.description,
         platform: videoMetadata.platform,
         thumbnail:
           videoMetadata.thumbnails?.high?.url ||
@@ -470,7 +514,7 @@ Regras:
           null,
         duration: videoMetadata.duration || null,
         category: "Vídeo",
-        tags: tagsResult.tags || [
+        tags: aiResult.tags || [
           "video",
           "conteudo",
           "midia",
