@@ -167,6 +167,11 @@ function isProductLink(url: string): boolean {
     const pathname = urlObj.pathname.toLowerCase();
     const searchParams = urlObj.searchParams.toString().toLowerCase();
 
+    // Excluir domínios que contenham "encrypted" ou "encripted"
+    if (hostname.includes("encrypted") || hostname.includes("encripted")) {
+      return false;
+    }
+
     // Excluir domínios de imagens/thumbnails do YouTube e outros serviços de imagem
     const imageOnlyDomains = [
       "yt3.ggpht.com",
