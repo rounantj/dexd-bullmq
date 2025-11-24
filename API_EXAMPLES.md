@@ -1,5 +1,13 @@
 # 🎬 API de Processamento de Vídeos
 
+## 📱 Plataformas Suportadas
+
+- ✅ **YouTube** (vídeos e shorts) - API oficial com metadados completos
+- ✅ **Instagram** - oEmbed API pública (posts/reels públicos)
+- ✅ **Facebook** - oEmbed API pública (vídeos públicos)
+- ✅ **Vimeo** - oEmbed API pública
+- ⚠️ **TikTok** - Detecção disponível, metadados limitados
+
 ## Endpoints Disponíveis
 
 ### 1. **POST** `/api/video-processing`
@@ -15,6 +23,26 @@ Adiciona um novo job de processamento de vídeo à fila.
   "userId": 9,
   "type": "video"
 }
+```
+
+**Exemplos de links suportados:**
+
+```json
+// YouTube
+{"videoLink": "https://youtube.com/watch?v=ABC123", ...}
+{"videoLink": "https://youtu.be/ABC123", ...}
+{"videoLink": "https://youtube.com/shorts/ABC123", ...}
+
+// Instagram
+{"videoLink": "https://instagram.com/p/ABC123/", ...}
+{"videoLink": "https://instagram.com/reel/ABC123/", ...}
+
+// Facebook
+{"videoLink": "https://facebook.com/watch/?v=123456", ...}
+{"videoLink": "https://fb.watch/ABC123/", ...}
+
+// Vimeo
+{"videoLink": "https://vimeo.com/123456789", ...}
 ```
 
 #### Response Success (201):

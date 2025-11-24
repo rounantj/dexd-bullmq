@@ -1,6 +1,7 @@
 # Projeto BullMQ com Redis e TypeScript
 
 Este projeto demonstra o uso de **BullMQ** para gerenciamento de filas com Redis, implementado em TypeScript.
+Inclui processamento inteligente de vídeos com IA para múltiplas plataformas.
 
 ## 🚀 Tecnologias
 
@@ -8,6 +9,19 @@ Este projeto demonstra o uso de **BullMQ** para gerenciamento de filas com Redis
 - **BullMQ** - Sistema de filas robusto baseado em Redis
 - **Redis** - Armazenamento em memória para filas
 - **Docker & Docker Compose** - Containerização
+- **OpenAI GPT-4** - Análise inteligente de vídeos
+- **YouTube Data API v3** - Metadados completos do YouTube
+- **oEmbed APIs** - Instagram, Facebook e Vimeo
+
+## 🎬 Plataformas de Vídeo Suportadas
+
+- ✅ **YouTube** - Metadados completos via API oficial
+- ✅ **Instagram** - Posts e Reels públicos via oEmbed
+- ✅ **Facebook** - Vídeos públicos via oEmbed
+- ✅ **Vimeo** - Vídeos públicos via oEmbed
+- ⚠️ **TikTok** - Apenas detecção (metadados limitados)
+
+> 📘 Veja [PLATFORMS_SUPPORT.md](./PLATFORMS_SUPPORT.md) para detalhes completos sobre cada plataforma
 
 ## 📁 Estrutura do Projeto
 
