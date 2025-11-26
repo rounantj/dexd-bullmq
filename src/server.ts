@@ -15,8 +15,7 @@ import {
 import "./workers/emailWorker";
 import "./workers/dataProcessingWorker";
 import "./workers/videoProcessingWorker";
-// Usar Worker V2 (autônomo) em vez do V1
-import "./workers/productProcessingWorkerV2";
+// NOTA: Worker de produtos está no dexd-api (usa todo o código existente)
 
 const app = express();
 
