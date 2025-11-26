@@ -588,16 +588,28 @@ async function getVideoMetadata(link: string): Promise<any> {
         console.log(`      ⚠️  Nenhuma descrição disponível`);
       }
       
-      if (seoData.image && !videoMetadata.thumbnail_url) {
-        videoMetadata.thumbnail_url = seoData.image;
-        videoMetadata.thumbnails = {
-          default: { url: seoData.image },
-          medium: { url: seoData.image },
-          high: { url: seoData.image },
-        };
-        console.log(`      ✅ Thumbnail aplicada: ${seoData.image.substring(0, 60)}${seoData.image.length > 60 ? '...' : ''}`);
-      } else if (videoMetadata.thumbnail_url) {
-        console.log(`      ⏭️  Thumbnail já existe, mantendo a atual`);
+      // IMPORTANTE: Verificar se já temos thumbnail da API (YouTube retorna thumbnails, não thumbnail_url)
+      const hasExistingThumbnail = videoMetadata.thumbnail_url || videoMetadata.thumbnails?.high?.url || videoMetadata.thumbnails?.default?.url;
+      
+      if (seoData.image && !hasExistingThumbnail) {
+        // Verificar se a imagem NÃO é um logo genérico do YouTube
+        const isGenericLogo = seoData.image.includes('yt_logo') || 
+                              seoData.image.includes('supported_browsers') ||
+                              seoData.image.includes('/img/desktop/');
+        
+        if (!isGenericLogo) {
+          videoMetadata.thumbnail_url = seoData.image;
+          videoMetadata.thumbnails = {
+            default: { url: seoData.image },
+            medium: { url: seoData.image },
+            high: { url: seoData.image },
+          };
+          console.log(`      ✅ Thumbnail aplicada: ${seoData.image.substring(0, 60)}${seoData.image.length > 60 ? '...' : ''}`);
+        } else {
+          console.log(`      ⚠️  Imagem ignorada (logo genérico do YouTube)`);
+        }
+      } else if (hasExistingThumbnail) {
+        console.log(`      ⏭️  Thumbnail já existe da API, mantendo: ${videoMetadata.thumbnails?.high?.url || videoMetadata.thumbnail_url}`);
       } else {
         console.log(`      ⚠️  Nenhuma thumbnail disponível`);
       }
@@ -669,14 +681,24 @@ async function getVideoMetadata(link: string): Promise<any> {
           videoMetadata.fullDescription = htmlMetadata.description;
           console.log("   ✅ Descrição obtida do HTML");
         }
-        if (htmlMetadata.image && !videoMetadata.thumbnail_url) {
-          videoMetadata.thumbnail_url = htmlMetadata.image;
-          videoMetadata.thumbnails = {
-            default: { url: htmlMetadata.image },
-            medium: { url: htmlMetadata.image },
-            high: { url: htmlMetadata.image },
-          };
-          console.log("   ✅ Thumbnail obtida do HTML");
+        // Verificar se já temos thumbnail da API antes de usar HTML
+        const hasExistingThumb = videoMetadata.thumbnail_url || videoMetadata.thumbnails?.high?.url;
+        if (htmlMetadata.image && !hasExistingThumb) {
+          // Verificar se NÃO é logo genérico
+          const isGenericLogo = htmlMetadata.image.includes('yt_logo') || 
+                                htmlMetadata.image.includes('supported_browsers') ||
+                                htmlMetadata.image.includes('/img/desktop/');
+          if (!isGenericLogo) {
+            videoMetadata.thumbnail_url = htmlMetadata.image;
+            videoMetadata.thumbnails = {
+              default: { url: htmlMetadata.image },
+              medium: { url: htmlMetadata.image },
+              high: { url: htmlMetadata.image },
+            };
+            console.log("   ✅ Thumbnail obtida do HTML");
+          } else {
+            console.log("   ⚠️ Thumbnail do HTML ignorada (logo genérico)");
+          }
         }
       }
     } catch (fallbackError: any) {
