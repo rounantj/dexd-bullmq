@@ -1,24 +1,29 @@
 {
-    "name": "bullmq-redis-project",
-    "version": "1.0.0",
-    "description": "Projeto com BullMQ e Redis para gerenciamento de filas",
+    "name": "dexd-infra-workers",
+    "version": "2.0.0",
+    "description": "Dexd Background Workers - BullMQ + Redis para processamento de vídeos e produtos",
     "main": "dist/index.js",
     "scripts": {
         "build": "tsc",
         "start": "node dist/server.js",
+        "start:workers": "node dist/workers/productProcessingWorkerV2.js",
         "dev": "nodemon --exec ts-node src/server.ts",
         "dev:worker": "nodemon --exec ts-node src/worker.ts",
+        "dev:product-worker": "nodemon --exec ts-node src/workers/productProcessingWorkerV2.ts",
         "dev:producer": "nodemon --exec ts-node src/producer.ts",
         "producer": "ts-node src/producer.ts",
-        "worker": "ts-node src/worker.ts"
+        "worker": "ts-node src/worker.ts",
+        "worker:product": "ts-node src/workers/productProcessingWorkerV2.ts"
     },
     "keywords": [
         "bullmq",
         "redis",
         "queue",
-        "typescript"
+        "typescript",
+        "workers",
+        "dexd"
     ],
-    "author": "",
+    "author": "Dexd Team",
     "license": "ISC",
     "dependencies": {
         "@bull-board/api": "^5.10.0",

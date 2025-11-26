@@ -8,9 +8,15 @@ import {
   videoProcessingQueue,
   VideoProcessingJobData,
 } from "./queues/videoProcessingQueue";
+import {
+  productProcessingQueue,
+  ProductProcessingJobData,
+} from "./queues/productProcessingQueue";
 import "./workers/emailWorker";
 import "./workers/dataProcessingWorker";
 import "./workers/videoProcessingWorker";
+// Usar Worker V2 (autônomo) em vez do V1
+import "./workers/productProcessingWorkerV2";
 
 const app = express();
 
@@ -29,6 +35,7 @@ createBullBoard({
     new BullMQAdapter(emailQueue) as any,
     new BullMQAdapter(dataProcessingQueue) as any,
     new BullMQAdapter(videoProcessingQueue) as any,
+    new BullMQAdapter(productProcessingQueue) as any,
   ],
   serverAdapter: serverAdapter,
 });
@@ -41,8 +48,12 @@ app.get("/", (req, res) => {
     endpoints: {
       dashboard: "/admin/queues",
       health: "/health",
+      // Video endpoints
       addVideoJob: "POST /api/video-processing",
       getVideoJob: "GET /api/video-processing/:jobId",
+      // Product endpoints (NEW!)
+      addProductJob: "POST /api/product-processing",
+      getProductJob: "GET /api/product-processing/:jobId",
     },
   });
 });
@@ -147,6 +158,117 @@ app.get("/api/video-processing/:jobId", async (req, res) => {
   }
 });
 
+// ═══════════════════════════════════════════════════════════════════════════
+// PRODUCT PROCESSING ENDPOINTS (NEW!)
+// ═══════════════════════════════════════════════════════════════════════════
+
+// POST - Adicionar job de processamento de produto
+app.post("/api/product-processing", async (req, res) => {
+  try {
+    const { productLink, videoLink, userId, dexdVideoId, options }: ProductProcessingJobData =
+      req.body;
+
+    // Aceita tanto productLink quanto videoLink (compatibilidade com dexd-api)
+    const link = productLink || videoLink;
+
+    // Validação básica
+    if (!link || !userId) {
+      return res.status(400).json({
+        error: "Campos obrigatórios faltando",
+        required: ["productLink ou videoLink", "userId"],
+      });
+    }
+
+    console.log(`\n📦 [Server]: Creating product job...`);
+    console.log(`   Link: ${link}`);
+    console.log(`   User: ${userId}`);
+    console.log(`   VideoId: ${dexdVideoId || "N/A"}`);
+
+    // Adiciona o job na fila (usando videoLink para o worker)
+    const job = await productProcessingQueue.add("process-product", {
+      videoLink: link, // Worker espera videoLink
+      userId,
+      dexdVideoId: dexdVideoId || null,
+      options: options || {},
+    });
+
+    console.log(`✅ [Server]: Product job created: ${job.id}`);
+
+    res.status(201).json({
+      success: true,
+      jobId: job.id,
+      message: "Produto adicionado à fila de processamento",
+      data: {
+        productLink: link,
+        userId,
+        dexdVideoId,
+      },
+    });
+  } catch (error: any) {
+    console.error("❌ [Server]: Erro ao criar job de produto:", error);
+    res.status(500).json({
+      success: false,
+      error: "Erro ao adicionar job à fila",
+      message: error.message,
+    });
+  }
+});
+
+// GET - Consultar status e resultado do job de produto
+app.get("/api/product-processing/:jobId", async (req, res) => {
+  try {
+    const { jobId } = req.params;
+
+    console.log(`\n📦 [Server]: Querying product job ${jobId}...`);
+
+    const job = await productProcessingQueue.getJob(jobId);
+
+    if (!job) {
+      return res.status(404).json({
+        success: false,
+        error: "Job não encontrado",
+        jobId,
+      });
+    }
+
+    const state = await job.getState();
+    const progress = job.progress;
+    const returnValue = job.returnvalue;
+
+    console.log(`   State: ${state}`);
+    console.log(`   Has Result: ${!!returnValue}`);
+
+    res.json({
+      success: true,
+      jobId: job.id,
+      status: state,
+      progress,
+      data: {
+        input: job.data,
+        result: returnValue,
+      },
+      timestamps: {
+        created: job.timestamp,
+        processed: job.processedOn,
+        finished: job.finishedOn,
+      },
+      attempts: {
+        made: job.attemptsMade,
+        total: job.opts.attempts,
+      },
+    });
+  } catch (error: any) {
+    console.error("❌ [Server]: Erro ao buscar job de produto:", error);
+    res.status(500).json({
+      success: false,
+      error: "Erro ao buscar job",
+      message: error.message,
+    });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+
 // Montar o Bull Board
 app.use("/admin/queues", serverAdapter.getRouter());
 
@@ -165,6 +287,7 @@ process.on("SIGTERM", async () => {
   await emailQueue.close();
   await dataProcessingQueue.close();
   await videoProcessingQueue.close();
+  await productProcessingQueue.close();
   process.exit(0);
 });
 
@@ -173,5 +296,6 @@ process.on("SIGINT", async () => {
   await emailQueue.close();
   await dataProcessingQueue.close();
   await videoProcessingQueue.close();
+  await productProcessingQueue.close();
   process.exit(0);
 });
