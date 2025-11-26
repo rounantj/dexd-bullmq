@@ -147,11 +147,7 @@ const worker = new Worker<ProductProcessingJobData>(
   },
   {
     connection: redisConnection,
-    concurrency: 2, // Processa 2 produtos em paralelo
-    limiter: {
-      max: 10,
-      duration: 60000, // Máximo 10 jobs por minuto
-    },
+    concurrency: 10, // ⚡ Processa até 10 produtos em paralelo
   }
 );
 
@@ -177,7 +173,7 @@ worker.on("ready", () => {
   console.log(`\n${"═".repeat(70)}`);
   console.log(`🏭 PRODUCT PROCESSING WORKER V2 READY`);
   console.log(`   Queue: product-processing-queue`);
-  console.log(`   Concurrency: 2`);
+  console.log(`   Concurrency: 10 (max simultaneous products)`);
   console.log(`   API: ${DEXD_API_URL}`);
   console.log(`${"═".repeat(70)}\n`);
 });
