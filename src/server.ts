@@ -1,4 +1,4 @@
-import express from "express";
+import express, { Request, Response, NextFunction } from "express";
 import { createBullBoard } from "@bull-board/api";
 import { BullMQAdapter } from "@bull-board/api/bullMQAdapter";
 import { ExpressAdapter } from "@bull-board/express";
@@ -12,12 +12,54 @@ import {
   productProcessingQueue,
   ProductProcessingJobData,
 } from "./queues/productProcessingQueue";
+import {
+  paymentProcessingQueue,
+  PaymentWebhookJobData,
+  isPaymentAlreadyProcessed,
+  markPaymentAsProcessed,
+  getProcessedPaymentInfo,
+} from "./queues/paymentProcessingQueue";
 import "./workers/emailWorker";
 import "./workers/dataProcessingWorker";
 import "./workers/videoProcessingWorker";
+import "./workers/paymentProcessingWorker";
 // NOTA: Worker de produtos está no dexd-api (usa todo o código existente)
 
 const app = express();
+
+// ═══════════════════════════════════════════════════════════════════════════
+// AUTENTICAÇÃO BÁSICA PARA O BULL BOARD DASHBOARD
+// ═══════════════════════════════════════════════════════════════════════════
+
+const BULL_BOARD_USER = process.env.BULL_BOARD_USER || "admin";
+const BULL_BOARD_PASSWORD = process.env.BULL_BOARD_PASSWORD || "dexd@2025";
+
+/**
+ * Middleware de autenticação básica (Basic Auth)
+ */
+function basicAuth(req: Request, res: Response, next: NextFunction) {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader || !authHeader.startsWith("Basic ")) {
+    res.setHeader("WWW-Authenticate", 'Basic realm="Bull Board Dashboard"');
+    return res.status(401).json({ error: "Autenticação necessária" });
+  }
+
+  // Decodificar credenciais Base64
+  const base64Credentials = authHeader.split(" ")[1];
+  const credentials = Buffer.from(base64Credentials, "base64").toString(
+    "utf-8"
+  );
+  const [username, password] = credentials.split(":");
+
+  // Verificar credenciais
+  if (username === BULL_BOARD_USER && password === BULL_BOARD_PASSWORD) {
+    return next();
+  }
+
+  res.setHeader("WWW-Authenticate", 'Basic realm="Bull Board Dashboard"');
+  return res.status(401).json({ error: "Credenciais inválidas" });
+}
 
 // Middleware para parsear JSON
 app.use(express.json());
@@ -35,6 +77,7 @@ createBullBoard({
     new BullMQAdapter(dataProcessingQueue) as any,
     new BullMQAdapter(videoProcessingQueue) as any,
     new BullMQAdapter(productProcessingQueue) as any,
+    new BullMQAdapter(paymentProcessingQueue) as any,
   ],
   serverAdapter: serverAdapter,
 });
@@ -50,9 +93,13 @@ app.get("/", (req, res) => {
       // Video endpoints
       addVideoJob: "POST /api/video-processing",
       getVideoJob: "GET /api/video-processing/:jobId",
-      // Product endpoints (NEW!)
+      // Product endpoints
       addProductJob: "POST /api/product-processing",
       getProductJob: "GET /api/product-processing/:jobId",
+      // Payment endpoints (Asaas webhooks)
+      addPaymentJob: "POST /api/payment-processing",
+      getPaymentJob: "GET /api/payment-processing/:jobId",
+      getPaymentStats: "GET /api/payment-processing/stats",
     },
   });
 });
@@ -164,8 +211,13 @@ app.get("/api/video-processing/:jobId", async (req, res) => {
 // POST - Adicionar job de processamento de produto
 app.post("/api/product-processing", async (req, res) => {
   try {
-    const { productLink, videoLink, userId, dexdVideoId, options }: ProductProcessingJobData =
-      req.body;
+    const {
+      productLink,
+      videoLink,
+      userId,
+      dexdVideoId,
+      options,
+    }: ProductProcessingJobData = req.body;
 
     // Aceita tanto productLink quanto videoLink (compatibilidade com dexd-api)
     const link = productLink || videoLink;
@@ -267,9 +319,202 @@ app.get("/api/product-processing/:jobId", async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
+// PAYMENT PROCESSING ENDPOINTS (Asaas Webhooks)
+// ═══════════════════════════════════════════════════════════════════════════
 
-// Montar o Bull Board
-app.use("/admin/queues", serverAdapter.getRouter());
+// POST - Adicionar job de processamento de pagamento (webhook Asaas)
+app.post("/api/payment-processing", async (req, res) => {
+  try {
+    const { event, payment }: PaymentWebhookJobData = req.body;
+
+    // Validação básica
+    if (!event || !payment) {
+      return res.status(400).json({
+        error: "Campos obrigatórios faltando",
+        required: ["event", "payment"],
+      });
+    }
+
+    console.log(`\n💳 [Server]: Recebendo webhook de pagamento...`);
+    console.log(`   Event: ${event}`);
+    console.log(`   Payment ID: ${payment.id}`);
+    console.log(`   Value: R$ ${payment.value?.toFixed(2)}`);
+    console.log(`   Status: ${payment.status}`);
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // IDEMPOTÊNCIA: Verificar se já processamos este webhook
+    // ═══════════════════════════════════════════════════════════════════════
+    const alreadyProcessed = await isPaymentAlreadyProcessed(payment.id, event);
+
+    if (alreadyProcessed) {
+      const previousInfo = await getProcessedPaymentInfo(payment.id, event);
+      console.log(`⚠️ [Server]: Webhook DUPLICADO ignorado!`);
+      console.log(`   Payment ID: ${payment.id}`);
+      console.log(`   Event: ${event}`);
+      console.log(`   Processado anteriormente: ${previousInfo?.processedAt}`);
+      console.log(`   Job anterior: ${previousInfo?.jobId}`);
+
+      // Retornar 200 OK para a Asaas não tentar novamente
+      return res.status(200).json({
+        success: true,
+        duplicate: true,
+        message: "Webhook já foi processado anteriormente",
+        previousJobId: previousInfo?.jobId,
+        previouslyProcessedAt: previousInfo?.processedAt,
+        data: {
+          event,
+          paymentId: payment.id,
+        },
+      });
+    }
+
+    // Adiciona o job na fila com prioridade baseada no evento
+    const priority =
+      event.includes("RECEIVED") || event.includes("CONFIRMED")
+        ? 1 // Alta prioridade para pagamentos confirmados
+        : event.includes("OVERDUE") || event.includes("FAILED")
+        ? 2 // Média prioridade para problemas
+        : 3; // Baixa prioridade para outros
+
+    const job = await paymentProcessingQueue.add(
+      "process-payment-webhook",
+      {
+        event,
+        payment,
+        receivedAt: new Date().toISOString(),
+      },
+      { priority }
+    );
+
+    // Marcar como processado IMEDIATAMENTE após enfileirar
+    await markPaymentAsProcessed(payment.id, event, job.id!);
+
+    console.log(
+      `✅ [Server]: Payment job criado: ${job.id} (priority: ${priority})`
+    );
+    console.log(`   🔒 Marcado como processado para evitar duplicatas`);
+
+    // Resposta rápida para a Asaas (importante!)
+    res.status(200).json({
+      success: true,
+      jobId: job.id,
+      message: "Webhook recebido e enfileirado para processamento",
+      data: {
+        event,
+        paymentId: payment.id,
+        priority,
+      },
+    });
+  } catch (error: any) {
+    console.error(
+      "❌ [Server]: Erro ao enfileirar webhook de pagamento:",
+      error
+    );
+
+    // IMPORTANTE: Retornar 500 para a Asaas tentar novamente
+    res.status(500).json({
+      success: false,
+      error: "Erro ao processar webhook",
+      message: error.message,
+    });
+  }
+});
+
+// GET - Consultar status e resultado do job de pagamento
+app.get("/api/payment-processing/:jobId", async (req, res) => {
+  try {
+    const { jobId } = req.params;
+
+    const job = await paymentProcessingQueue.getJob(jobId);
+
+    if (!job) {
+      return res.status(404).json({
+        success: false,
+        error: "Job não encontrado",
+        jobId,
+      });
+    }
+
+    const state = await job.getState();
+    const progress = job.progress;
+    const returnValue = job.returnvalue;
+
+    res.json({
+      success: true,
+      jobId: job.id,
+      status: state,
+      progress,
+      data: {
+        input: {
+          event: job.data.event,
+          paymentId: job.data.payment?.id,
+          value: job.data.payment?.value,
+          status: job.data.payment?.status,
+        },
+        result: returnValue,
+      },
+      timestamps: {
+        received: job.data.receivedAt,
+        created: job.timestamp,
+        processed: job.processedOn,
+        finished: job.finishedOn,
+      },
+      attempts: {
+        made: job.attemptsMade,
+        total: job.opts.attempts,
+      },
+    });
+  } catch (error: any) {
+    console.error("❌ [Server]: Erro ao buscar job de pagamento:", error);
+    res.status(500).json({
+      success: false,
+      error: "Erro ao buscar job",
+      message: error.message,
+    });
+  }
+});
+
+// GET - Estatísticas da fila de pagamentos
+app.get("/api/payment-processing/stats", async (req, res) => {
+  try {
+    const [waiting, active, completed, failed, delayed] = await Promise.all([
+      paymentProcessingQueue.getWaitingCount(),
+      paymentProcessingQueue.getActiveCount(),
+      paymentProcessingQueue.getCompletedCount(),
+      paymentProcessingQueue.getFailedCount(),
+      paymentProcessingQueue.getDelayedCount(),
+    ]);
+
+    res.json({
+      success: true,
+      stats: {
+        waiting,
+        active,
+        completed,
+        failed,
+        delayed,
+        total: waiting + active + completed + failed + delayed,
+      },
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    console.error("❌ [Server]: Erro ao buscar stats:", error);
+    res.status(500).json({
+      success: false,
+      error: "Erro ao buscar estatísticas",
+      message: error.message,
+    });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Montar o Bull Board COM AUTENTICAÇÃO
+app.use("/admin/queues", basicAuth, serverAdapter.getRouter());
+
+console.log(`🔐 Bull Board protegido com autenticação básica`);
+console.log(`   User: ${BULL_BOARD_USER}`);
+console.log(`   Password: ${"*".repeat(BULL_BOARD_PASSWORD.length)}`);
 
 // Iniciar servidor
 app.listen(PORT, () => {
@@ -287,6 +532,7 @@ process.on("SIGTERM", async () => {
   await dataProcessingQueue.close();
   await videoProcessingQueue.close();
   await productProcessingQueue.close();
+  await paymentProcessingQueue.close();
   process.exit(0);
 });
 
@@ -296,5 +542,6 @@ process.on("SIGINT", async () => {
   await dataProcessingQueue.close();
   await videoProcessingQueue.close();
   await productProcessingQueue.close();
+  await paymentProcessingQueue.close();
   process.exit(0);
 });
