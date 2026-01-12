@@ -17,7 +17,7 @@ const openai = new OpenAI({
 async function detectVideoPlatform(link: string): Promise<string> {
   console.log(`🔎 [PLATFORM DETECTION]: Analyzing URL...`);
   console.log(`   URL: ${link}`);
-  
+
   try {
     // Detecção rápida por URL antes de usar IA (mais rápido e confiável)
     if (link.includes("youtube.com") || link.includes("youtu.be")) {
@@ -105,6 +105,8 @@ async function fetchYouTubeMetadata(url: string): Promise<any> {
 
     const response = await axios.get(apiUrl.toString());
 
+    console.log("🔍 [Worker]: YouTube metadata response:", response.data);
+
     if (response.data?.items && response.data.items.length > 0) {
       const video = response.data.items[0];
       const snippet = video.snippet;
@@ -143,7 +145,7 @@ async function fetchYouTubeMetadata(url: string): Promise<any> {
  */
 function extractMetaTagsFromHTML(html: string): any {
   console.log("🔍 [HTML PARSER]: Extraindo meta tags do HTML...");
-  
+
   const metadata: any = {
     title: null,
     description: null,
@@ -154,53 +156,70 @@ function extractMetaTagsFromHTML(html: string): any {
 
   try {
     // Extrair og:title
-    const ogTitleMatch = html.match(/<meta\s+property=["']og:title["']\s+content=["']([^"']+)["']/i);
+    const ogTitleMatch = html.match(
+      /<meta\s+property=["']og:title["']\s+content=["']([^"']+)["']/i
+    );
     if (ogTitleMatch) {
       metadata.title = ogTitleMatch[1]
-        .replace(/&amp;/g, '&')
+        .replace(/&amp;/g, "&")
         .replace(/&quot;/g, '"')
         .replace(/&#x27;/g, "'")
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&#xc1;/g, 'Á')
-        .replace(/&#xe1;/g, 'á')
-        .replace(/&#xe9;/g, 'é')
-        .replace(/&#xed;/g, 'í')
-        .replace(/&#xf3;/g, 'ó')
-        .replace(/&#xfa;/g, 'ú')
-        .replace(/&#xb7;/g, '·');
-      console.log(`   ✅ og:title found: ${metadata.title.substring(0, 80)}...`);
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&#xc1;/g, "Á")
+        .replace(/&#xe1;/g, "á")
+        .replace(/&#xe9;/g, "é")
+        .replace(/&#xed;/g, "í")
+        .replace(/&#xf3;/g, "ó")
+        .replace(/&#xfa;/g, "ú")
+        .replace(/&#xb7;/g, "·");
+      console.log(
+        `   ✅ og:title found: ${metadata.title.substring(0, 80)}...`
+      );
     }
 
     // Extrair og:description
-    const ogDescMatch = html.match(/<meta\s+property=["']og:description["']\s+content=["']([^"']+)["']/i);
+    const ogDescMatch = html.match(
+      /<meta\s+property=["']og:description["']\s+content=["']([^"']+)["']/i
+    );
     if (ogDescMatch) {
       metadata.description = ogDescMatch[1]
-        .replace(/&amp;/g, '&')
+        .replace(/&amp;/g, "&")
         .replace(/&quot;/g, '"')
         .replace(/&#x27;/g, "'")
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&#xc1;/g, 'Á')
-        .replace(/&#xe1;/g, 'á')
-        .replace(/&#xe9;/g, 'é')
-        .replace(/&#xed;/g, 'í')
-        .replace(/&#xf3;/g, 'ó')
-        .replace(/&#xfa;/g, 'ú')
-        .replace(/\n/g, ' ')
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&#xc1;/g, "Á")
+        .replace(/&#xe1;/g, "á")
+        .replace(/&#xe9;/g, "é")
+        .replace(/&#xed;/g, "í")
+        .replace(/&#xf3;/g, "ó")
+        .replace(/&#xfa;/g, "ú")
+        .replace(/\n/g, " ")
         .trim();
-      console.log(`   ✅ og:description found: ${metadata.description.substring(0, 80)}...`);
+      console.log(
+        `   ✅ og:description found: ${metadata.description.substring(
+          0,
+          80
+        )}...`
+      );
     }
 
     // Extrair og:image
-    const ogImageMatch = html.match(/<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/i);
+    const ogImageMatch = html.match(
+      /<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/i
+    );
     if (ogImageMatch) {
       metadata.image = ogImageMatch[1];
-      console.log(`   ✅ og:image found: ${metadata.image.substring(0, 80)}...`);
+      console.log(
+        `   ✅ og:image found: ${metadata.image.substring(0, 80)}...`
+      );
     }
 
     // Extrair og:video
-    const ogVideoMatch = html.match(/<meta\s+property=["']og:video["']\s+content=["']([^"']+)["']/i);
+    const ogVideoMatch = html.match(
+      /<meta\s+property=["']og:video["']\s+content=["']([^"']+)["']/i
+    );
     if (ogVideoMatch) {
       metadata.video = ogVideoMatch[1];
       console.log(`   ✅ og:video found`);
@@ -208,20 +227,27 @@ function extractMetaTagsFromHTML(html: string): any {
 
     // Fallback: meta name="description"
     if (!metadata.description) {
-      const metaDescMatch = html.match(/<meta\s+name=["']description["']\s+content=["']([^"']+)["']/i);
+      const metaDescMatch = html.match(
+        /<meta\s+name=["']description["']\s+content=["']([^"']+)["']/i
+      );
       if (metaDescMatch) {
         metadata.description = metaDescMatch[1]
-          .replace(/&amp;/g, '&')
+          .replace(/&amp;/g, "&")
           .replace(/&quot;/g, '"')
           .replace(/&#x27;/g, "'")
-          .replace(/&#xc1;/g, 'Á')
-          .replace(/&#xe1;/g, 'á')
-          .replace(/&#xe9;/g, 'é')
-          .replace(/&#xed;/g, 'í')
-          .replace(/&#xf3;/g, 'ó')
-          .replace(/&#xfa;/g, 'ú')
+          .replace(/&#xc1;/g, "Á")
+          .replace(/&#xe1;/g, "á")
+          .replace(/&#xe9;/g, "é")
+          .replace(/&#xed;/g, "í")
+          .replace(/&#xf3;/g, "ó")
+          .replace(/&#xfa;/g, "ú")
           .trim();
-        console.log(`   ✅ meta description found (fallback): ${metadata.description.substring(0, 80)}...`);
+        console.log(
+          `   ✅ meta description found (fallback): ${metadata.description.substring(
+            0,
+            80
+          )}...`
+        );
       }
     }
 
@@ -230,29 +256,33 @@ function extractMetaTagsFromHTML(html: string): any {
       const titleMatch = html.match(/<title>([^<]+)<\/title>/i);
       if (titleMatch) {
         metadata.title = titleMatch[1]
-          .replace(/&amp;/g, '&')
+          .replace(/&amp;/g, "&")
           .replace(/&quot;/g, '"')
           .replace(/&#x27;/g, "'")
           .trim();
-        console.log(`   ✅ <title> found (fallback): ${metadata.title.substring(0, 80)}...`);
+        console.log(
+          `   ✅ <title> found (fallback): ${metadata.title.substring(
+            0,
+            80
+          )}...`
+        );
       }
     }
 
     // Extrair autor do título (formato: "... | Nome do Autor")
-    if (metadata.title && metadata.title.includes('|')) {
-      const parts = metadata.title.split('|');
+    if (metadata.title && metadata.title.includes("|")) {
+      const parts = metadata.title.split("|");
       if (parts.length > 1) {
         metadata.author = parts[parts.length - 1].trim();
         console.log(`   ✅ Author extracted from title: ${metadata.author}`);
       }
     }
 
-    console.log(`   📊 Meta tags extraction complete:`,);
-    console.log(`      - Title: ${metadata.title ? 'YES' : 'NO'}`);
-    console.log(`      - Description: ${metadata.description ? 'YES' : 'NO'}`);
-    console.log(`      - Image: ${metadata.image ? 'YES' : 'NO'}`);
-    console.log(`      - Author: ${metadata.author ? 'YES' : 'NO'}`);
-
+    console.log(`   📊 Meta tags extraction complete:`);
+    console.log(`      - Title: ${metadata.title ? "YES" : "NO"}`);
+    console.log(`      - Description: ${metadata.description ? "YES" : "NO"}`);
+    console.log(`      - Image: ${metadata.image ? "YES" : "NO"}`);
+    console.log(`      - Author: ${metadata.author ? "YES" : "NO"}`);
   } catch (error: any) {
     console.error(`   ❌ Error parsing HTML: ${error.message}`);
   }
@@ -267,29 +297,40 @@ async function fetchInstagramMetadata(url: string): Promise<any> {
   try {
     console.log("📸 [Worker]: Fetching Instagram metadata via oEmbed...");
     console.log(`   📍 URL: ${url}`);
-    
+
     // Tentar com oEmbed público (sem token)
-    const publicOembedUrl = `https://api.instagram.com/oembed/?url=${encodeURIComponent(url)}`;
+    const publicOembedUrl = `https://api.instagram.com/oembed/?url=${encodeURIComponent(
+      url
+    )}`;
     console.log(`   🔗 oEmbed URL: ${publicOembedUrl}`);
     console.log("   ⏳ Calling Instagram API... (timeout: 10s)");
-    
+
     const response = await axios.get(publicOembedUrl, {
       timeout: 10000,
       headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
       },
     });
 
-    console.log(`   ✅ Instagram API responded with status: ${response.status}`);
+    console.log(
+      `   ✅ Instagram API responded with status: ${response.status}`
+    );
 
     console.log("   📦 RAW Response Data:");
     console.log(JSON.stringify(response.data, null, 2));
 
     if (response.data) {
       const metadata = {
-        title: response.data.title || response.data.author_name || "Post do Instagram",
-        description: response.data.title || `Post de ${response.data.author_name}`,
-        fullDescription: response.data.title || `Vídeo/Post do Instagram criado por ${response.data.author_name}`,
+        title:
+          response.data.title ||
+          response.data.author_name ||
+          "Post do Instagram",
+        description:
+          response.data.title || `Post de ${response.data.author_name}`,
+        fullDescription:
+          response.data.title ||
+          `Vídeo/Post do Instagram criado por ${response.data.author_name}`,
         author: response.data.author_name || "Usuário Instagram",
         channelTitle: response.data.author_name || "Usuário Instagram",
         authorUrl: response.data.author_url || null,
@@ -305,14 +346,14 @@ async function fetchInstagramMetadata(url: string): Promise<any> {
         provider_name: response.data.provider_name,
         provider_url: response.data.provider_url,
       };
-      
+
       console.log("   ✅ Processed Metadata:");
       console.log(`      - Title: ${metadata.title}`);
       console.log(`      - Description: ${metadata.description}`);
       console.log(`      - Author: ${metadata.author}`);
-      console.log(`      - Thumbnail: ${metadata.thumbnail_url || 'NULL'}`);
+      console.log(`      - Thumbnail: ${metadata.thumbnail_url || "NULL"}`);
       console.log(`      - Dimensions: ${metadata.width}x${metadata.height}`);
-      
+
       return metadata;
     }
 
@@ -320,9 +361,11 @@ async function fetchInstagramMetadata(url: string): Promise<any> {
     return null;
   } catch (error: any) {
     console.error("   ❌ Instagram oEmbed failed:");
-    console.error(`      - Status: ${error.response?.status || 'N/A'}`);
+    console.error(`      - Status: ${error.response?.status || "N/A"}`);
     console.error(`      - Message: ${error.message}`);
-    console.error(`      - Response: ${JSON.stringify(error.response?.data || {})}`);
+    console.error(
+      `      - Response: ${JSON.stringify(error.response?.data || {})}`
+    );
     return null;
   }
 }
@@ -334,15 +377,18 @@ async function fetchFacebookMetadata(url: string): Promise<any> {
   try {
     console.log("📘 [Worker]: Fetching Facebook metadata via oEmbed...");
     console.log(`   📍 URL: ${url}`);
-    
+
     // Facebook oEmbed público
-    const oembedUrl = `https://www.facebook.com/plugins/video/oembed.json/?url=${encodeURIComponent(url)}`;
+    const oembedUrl = `https://www.facebook.com/plugins/video/oembed.json/?url=${encodeURIComponent(
+      url
+    )}`;
     console.log(`   🔗 oEmbed URL: ${oembedUrl}`);
-    
+
     const response = await axios.get(oembedUrl, {
       timeout: 10000,
       headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
       },
     });
 
@@ -353,7 +399,9 @@ async function fetchFacebookMetadata(url: string): Promise<any> {
       const metadata = {
         title: response.data.title || "Vídeo do Facebook",
         description: response.data.title || "Vídeo compartilhado no Facebook",
-        fullDescription: response.data.title || `Vídeo do Facebook criado por ${response.data.author_name}`,
+        fullDescription:
+          response.data.title ||
+          `Vídeo do Facebook criado por ${response.data.author_name}`,
         author: response.data.author_name || "Facebook User",
         channelTitle: response.data.author_name || "Facebook User",
         authorUrl: response.data.author_url || null,
@@ -367,14 +415,14 @@ async function fetchFacebookMetadata(url: string): Promise<any> {
         height: response.data.height,
         provider: "Facebook",
       };
-      
+
       console.log("   ✅ Processed Metadata:");
       console.log(`      - Title: ${metadata.title}`);
       console.log(`      - Description: ${metadata.description}`);
       console.log(`      - Author: ${metadata.author}`);
-      console.log(`      - Thumbnail: ${metadata.thumbnail_url || 'NULL'}`);
+      console.log(`      - Thumbnail: ${metadata.thumbnail_url || "NULL"}`);
       console.log(`      - Dimensions: ${metadata.width}x${metadata.height}`);
-      
+
       return metadata;
     }
 
@@ -382,9 +430,11 @@ async function fetchFacebookMetadata(url: string): Promise<any> {
     return null;
   } catch (error: any) {
     console.error("   ❌ Facebook oEmbed failed:");
-    console.error(`      - Status: ${error.response?.status || 'N/A'}`);
+    console.error(`      - Status: ${error.response?.status || "N/A"}`);
     console.error(`      - Message: ${error.message}`);
-    console.error(`      - Response: ${JSON.stringify(error.response?.data || {})}`);
+    console.error(
+      `      - Response: ${JSON.stringify(error.response?.data || {})}`
+    );
     return null;
   }
 }
@@ -395,19 +445,24 @@ async function fetchFacebookMetadata(url: string): Promise<any> {
 async function fetchVimeoMetadata(url: string): Promise<any> {
   try {
     console.log("🎥 [Worker]: Fetching Vimeo metadata via oEmbed...");
-    
-    const oembedUrl = `https://vimeo.com/api/oembed.json?url=${encodeURIComponent(url)}`;
-    
+
+    const oembedUrl = `https://vimeo.com/api/oembed.json?url=${encodeURIComponent(
+      url
+    )}`;
+
     const response = await axios.get(oembedUrl, {
       timeout: 10000,
       headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
       },
     });
 
     if (response.data) {
-      console.log(`✅ [Worker]: Vimeo metadata fetched: ${response.data.title}`);
-      
+      console.log(
+        `✅ [Worker]: Vimeo metadata fetched: ${response.data.title}`
+      );
+
       return {
         title: response.data.title || "Vídeo do Vimeo",
         description: response.data.description || response.data.title,
@@ -444,7 +499,9 @@ async function getVideoMetadata(link: string): Promise<any> {
   console.log("📡".repeat(40) + "\n");
 
   const platform = await detectVideoPlatform(link);
-  console.log(`✅ [PLATFORM DETECTION]: Plataforma detectada: ${platform.toUpperCase()}`);
+  console.log(
+    `✅ [PLATFORM DETECTION]: Plataforma detectada: ${platform.toUpperCase()}`
+  );
 
   let videoMetadata: any = {
     platform,
@@ -457,7 +514,9 @@ async function getVideoMetadata(link: string): Promise<any> {
   // Buscar metadados específicos da plataforma
   // YOUTUBE - Mantém exatamente como estava (NÃO MEXER)
   if (platform === "youtube" || platform === "youtube-shorts") {
-    console.log("\n🎯 [YOUTUBE MODE]: Buscando metadados via YouTube Data API v3...");
+    console.log(
+      "\n🎯 [YOUTUBE MODE]: Buscando metadados via YouTube Data API v3..."
+    );
     const youtubeData = await fetchYouTubeMetadata(link);
     if (youtubeData) {
       console.log("✅ [YOUTUBE]: Metadados obtidos com sucesso!");
@@ -476,7 +535,7 @@ async function getVideoMetadata(link: string): Promise<any> {
     try {
       const instagramData = await fetchInstagramMetadata(link);
       console.log("   📦 fetchInstagramMetadata returned:");
-      console.log(`      - Has data: ${instagramData ? 'YES' : 'NO'}`);
+      console.log(`      - Has data: ${instagramData ? "YES" : "NO"}`);
       if (instagramData) {
         console.log("✅ [INSTAGRAM]: Metadados obtidos com sucesso!");
         videoMetadata = {
@@ -519,27 +578,35 @@ async function getVideoMetadata(link: string): Promise<any> {
     } else {
       console.warn("⚠️ [VIMEO]: Falha ao obter metadados");
     }
-  }
-  else {
-    console.warn(`⚠️ [UNKNOWN PLATFORM]: Plataforma '${platform}' não tem integração específica`);
+  } else {
+    console.warn(
+      `⚠️ [UNKNOWN PLATFORM]: Plataforma '${platform}' não tem integração específica`
+    );
   }
 
   // Tentar buscar metadados via API do Extractor (Python service)
-  const extractorApiUrl = process.env.EXTRACTOR_API_URL || process.env.EXTRACTOR || 'http://127.0.0.1:4000';
+  const extractorApiUrl =
+    process.env.EXTRACTOR_API_URL ||
+    process.env.EXTRACTOR ||
+    "http://127.0.0.1:4000";
   console.log("\n" + "🐍".repeat(40));
-  console.log("🐍 [EXTRACTOR API]: Chamando serviço Python para extração SEO...");
+  console.log(
+    "🐍 [EXTRACTOR API]: Chamando serviço Python para extração SEO..."
+  );
   console.log(`   🔗 API URL: ${extractorApiUrl}`);
   console.log(`   📍 Target URL: ${link}`);
   console.log(`   📤 Endpoint: POST ${extractorApiUrl}/extract-seo`);
   console.log(`   ⏳ Timeout: 20 segundos`);
-  console.log(`   🌍 ENV EXTRACTOR_API_URL: ${process.env.EXTRACTOR_API_URL || 'NOT SET'}`);
-  console.log(`   🌍 ENV EXTRACTOR: ${process.env.EXTRACTOR || 'NOT SET'}`);
+  console.log(
+    `   🌍 ENV EXTRACTOR_API_URL: ${process.env.EXTRACTOR_API_URL || "NOT SET"}`
+  );
+  console.log(`   🌍 ENV EXTRACTOR: ${process.env.EXTRACTOR || "NOT SET"}`);
   console.log("🐍".repeat(40));
-  
+
   try {
     console.log("\n   📡 Enviando request para Extractor API...");
     console.log(`   📦 Payload: ${JSON.stringify({ url: link })}`);
-    
+
     const extractorResponse = await axios.post(
       `${extractorApiUrl}/extract-seo`,
       { url: link },
@@ -551,52 +618,79 @@ async function getVideoMetadata(link: string): Promise<any> {
       }
     );
 
-    console.log(`\n   ✅ HTTP ${extractorResponse.status} - Extractor API respondeu!`);
+    console.log(
+      `\n   ✅ HTTP ${extractorResponse.status} - Extractor API respondeu!`
+    );
     console.log("   📥 RESPONSE COMPLETA:");
     console.log(JSON.stringify(extractorResponse.data, null, 2));
 
-    if (extractorResponse.data && extractorResponse.data.status === 'success') {
+    if (extractorResponse.data && extractorResponse.data.status === "success") {
       console.log("\n   ✅ Status: SUCCESS");
       console.log(`   🔍 Fonte dos dados: ${extractorResponse.data.source}`);
-      
+
       const seoData = extractorResponse.data;
-      
+
       console.log("\n   📊 Dados extraídos pela API Python:");
-      console.log(`      📄 Title: ${seoData.title ? 'PRESENTE (' + seoData.title.length + ' chars)' : 'NULL'}`);
-      console.log(`      📝 Description: ${seoData.description ? 'PRESENTE (' + seoData.description.length + ' chars)' : 'NULL'}`);
-      console.log(`      🖼️  Image: ${seoData.image ? 'PRESENTE' : 'NULL'}`);
-      
+      console.log(
+        `      📄 Title: ${
+          seoData.title
+            ? "PRESENTE (" + seoData.title.length + " chars)"
+            : "NULL"
+        }`
+      );
+      console.log(
+        `      📝 Description: ${
+          seoData.description
+            ? "PRESENTE (" + seoData.description.length + " chars)"
+            : "NULL"
+        }`
+      );
+      console.log(`      🖼️  Image: ${seoData.image ? "PRESENTE" : "NULL"}`);
+
       // Mesclar dados: priorizar dados da API oEmbed, usar SEO como fallback
       console.log("\n   🔄 Mesclando dados com metadados existentes...");
-      
+
       if (seoData.title && !videoMetadata.title) {
         videoMetadata.title = seoData.title;
-        console.log(`      ✅ Título aplicado: ${seoData.title.substring(0, 80)}${seoData.title.length > 80 ? '...' : ''}`);
+        console.log(
+          `      ✅ Título aplicado: ${seoData.title.substring(0, 80)}${
+            seoData.title.length > 80 ? "..." : ""
+          }`
+        );
       } else if (videoMetadata.title) {
         console.log(`      ⏭️  Título já existe, mantendo o atual`);
       } else {
         console.log(`      ⚠️  Nenhum título disponível`);
       }
-      
+
       if (seoData.description && !videoMetadata.description) {
         videoMetadata.description = seoData.description;
         videoMetadata.fullDescription = seoData.description;
-        console.log(`      ✅ Descrição aplicada: ${seoData.description.substring(0, 80)}${seoData.description.length > 80 ? '...' : ''}`);
+        console.log(
+          `      ✅ Descrição aplicada: ${seoData.description.substring(
+            0,
+            80
+          )}${seoData.description.length > 80 ? "..." : ""}`
+        );
       } else if (videoMetadata.description) {
         console.log(`      ⏭️  Descrição já existe, mantendo a atual`);
       } else {
         console.log(`      ⚠️  Nenhuma descrição disponível`);
       }
-      
+
       // IMPORTANTE: Verificar se já temos thumbnail da API (YouTube retorna thumbnails, não thumbnail_url)
-      const hasExistingThumbnail = videoMetadata.thumbnail_url || videoMetadata.thumbnails?.high?.url || videoMetadata.thumbnails?.default?.url;
-      
+      const hasExistingThumbnail =
+        videoMetadata.thumbnail_url ||
+        videoMetadata.thumbnails?.high?.url ||
+        videoMetadata.thumbnails?.default?.url;
+
       if (seoData.image && !hasExistingThumbnail) {
         // Verificar se a imagem NÃO é um logo genérico do YouTube
-        const isGenericLogo = seoData.image.includes('yt_logo') || 
-                              seoData.image.includes('supported_browsers') ||
-                              seoData.image.includes('/img/desktop/');
-        
+        const isGenericLogo =
+          seoData.image.includes("yt_logo") ||
+          seoData.image.includes("supported_browsers") ||
+          seoData.image.includes("/img/desktop/");
+
         if (!isGenericLogo) {
           videoMetadata.thumbnail_url = seoData.image;
           videoMetadata.thumbnails = {
@@ -604,73 +698,94 @@ async function getVideoMetadata(link: string): Promise<any> {
             medium: { url: seoData.image },
             high: { url: seoData.image },
           };
-          console.log(`      ✅ Thumbnail aplicada: ${seoData.image.substring(0, 60)}${seoData.image.length > 60 ? '...' : ''}`);
+          console.log(
+            `      ✅ Thumbnail aplicada: ${seoData.image.substring(0, 60)}${
+              seoData.image.length > 60 ? "..." : ""
+            }`
+          );
         } else {
           console.log(`      ⚠️  Imagem ignorada (logo genérico do YouTube)`);
         }
       } else if (hasExistingThumbnail) {
-        console.log(`      ⏭️  Thumbnail já existe da API, mantendo: ${videoMetadata.thumbnails?.high?.url || videoMetadata.thumbnail_url}`);
+        console.log(
+          `      ⏭️  Thumbnail já existe da API, mantendo: ${
+            videoMetadata.thumbnails?.high?.url || videoMetadata.thumbnail_url
+          }`
+        );
       } else {
         console.log(`      ⚠️  Nenhuma thumbnail disponível`);
       }
-      
+
       // Extrair autor do título se disponível (formato: "... | Nome do Autor")
       console.log("\n   👤 Tentando extrair autor do título...");
-      if (seoData.title && seoData.title.includes('|') && !videoMetadata.author) {
-        const parts = seoData.title.split('|');
+      if (
+        seoData.title &&
+        seoData.title.includes("|") &&
+        !videoMetadata.author
+      ) {
+        const parts = seoData.title.split("|");
         if (parts.length > 1) {
           videoMetadata.author = parts[parts.length - 1].trim();
           videoMetadata.channelTitle = videoMetadata.author;
-          console.log(`      ✅ Autor extraído do título: ${videoMetadata.author}`);
+          console.log(
+            `      ✅ Autor extraído do título: ${videoMetadata.author}`
+          );
         } else {
-          console.log(`      ℹ️ Título tem | mas não foi possível extrair autor`);
+          console.log(
+            `      ℹ️ Título tem | mas não foi possível extrair autor`
+          );
         }
       } else if (videoMetadata.author) {
         console.log(`      ⏭️  Autor já existe: ${videoMetadata.author}`);
       } else {
         console.log(`      ℹ️ Título não contém | para extrair autor`);
       }
-      
+
       // Guardar conteúdo para extração de links de produtos
-      videoMetadata.pageContent = seoData.title + ' ' + seoData.description;
-      console.log(`\n   💾 PageContent atualizado (${videoMetadata.pageContent.length} bytes)`);
-      
+      videoMetadata.pageContent = seoData.title + " " + seoData.description;
+      console.log(
+        `\n   💾 PageContent atualizado (${videoMetadata.pageContent.length} bytes)`
+      );
     } else {
       console.error("   ❌ Status diferente de 'success':");
-      console.error(`      Status: ${extractorResponse.data?.status || 'UNDEFINED'}`);
-      console.error(`      Error: ${extractorResponse.data?.error || 'N/A'}`);
+      console.error(
+        `      Status: ${extractorResponse.data?.status || "UNDEFINED"}`
+      );
+      console.error(`      Error: ${extractorResponse.data?.error || "N/A"}`);
     }
-    
   } catch (error: any) {
     console.error("\n   💥 [EXTRACTOR API]: FALHOU!");
     console.error(`      Error Name: ${error.name}`);
     console.error(`      Error Message: ${error.message}`);
-    console.error(`      Error Code: ${error.code || 'N/A'}`);
-    
+    console.error(`      Error Code: ${error.code || "N/A"}`);
+
     if (error.response) {
       console.error(`      HTTP Status: ${error.response.status}`);
-      console.error(`      Response Data: ${JSON.stringify(error.response.data)}`);
+      console.error(
+        `      Response Data: ${JSON.stringify(error.response.data)}`
+      );
     } else if (error.request) {
       console.error(`      Sem resposta do servidor`);
       console.error(`      Request foi feito mas não houve resposta`);
     }
-    
+
     console.log("\n   ℹ️ Continuando sem extração SEO adicional...");
-    
+
     // Fallback: tentar scraping direto apenas se Extractor falhar
     console.log("\n🌐 [FALLBACK]: Tentando scraping direto...");
     try {
       const response = await axios.get(link, {
         timeout: 15000,
         headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
         },
       });
       videoMetadata.pageContent = response.data;
       console.log(`   ✅ Conteúdo obtido (${response.data.length} bytes)`);
-      
+
       // Usar função local de extração
-      if (typeof response.data === 'string') {
+      if (typeof response.data === "string") {
         const htmlMetadata = extractMetaTagsFromHTML(response.data);
         if (htmlMetadata.title && !videoMetadata.title) {
           videoMetadata.title = htmlMetadata.title;
@@ -682,12 +797,14 @@ async function getVideoMetadata(link: string): Promise<any> {
           console.log("   ✅ Descrição obtida do HTML");
         }
         // Verificar se já temos thumbnail da API antes de usar HTML
-        const hasExistingThumb = videoMetadata.thumbnail_url || videoMetadata.thumbnails?.high?.url;
+        const hasExistingThumb =
+          videoMetadata.thumbnail_url || videoMetadata.thumbnails?.high?.url;
         if (htmlMetadata.image && !hasExistingThumb) {
           // Verificar se NÃO é logo genérico
-          const isGenericLogo = htmlMetadata.image.includes('yt_logo') || 
-                                htmlMetadata.image.includes('supported_browsers') ||
-                                htmlMetadata.image.includes('/img/desktop/');
+          const isGenericLogo =
+            htmlMetadata.image.includes("yt_logo") ||
+            htmlMetadata.image.includes("supported_browsers") ||
+            htmlMetadata.image.includes("/img/desktop/");
           if (!isGenericLogo) {
             videoMetadata.thumbnail_url = htmlMetadata.image;
             videoMetadata.thumbnails = {
@@ -702,7 +819,9 @@ async function getVideoMetadata(link: string): Promise<any> {
         }
       }
     } catch (fallbackError: any) {
-      console.warn(`   ⚠️ [FALLBACK]: Também falhou - ${fallbackError.message}`);
+      console.warn(
+        `   ⚠️ [FALLBACK]: Também falhou - ${fallbackError.message}`
+      );
     }
   }
 
@@ -710,12 +829,34 @@ async function getVideoMetadata(link: string): Promise<any> {
   console.log("\n" + "📊".repeat(40));
   console.log("📊 [METADATA SUMMARY]: Resumo dos metadados obtidos:");
   console.log(`   🎯 Plataforma: ${videoMetadata.platform}`);
-  console.log(`   📝 Título: ${videoMetadata.title || 'NULO'}`);
-  console.log(`   📄 Descrição: ${videoMetadata.description ? 'PRESENTE ('+videoMetadata.description.length+' chars)' : 'NULO'}`);
-  console.log(`   👤 Autor: ${videoMetadata.author || videoMetadata.channelTitle || 'NULO'}`);
-  console.log(`   🖼️  Thumbnail: ${videoMetadata.thumbnail_url || videoMetadata.thumbnails?.high?.url ? 'PRESENTE' : 'NULO'}`);
-  console.log(`   🔗 URL Thumbnail: ${videoMetadata.thumbnail_url || videoMetadata.thumbnails?.high?.url || 'N/A'}`);
-  console.log(`   ⏱️  Duração: ${videoMetadata.duration || 'NULO'}`);
+  console.log(`   📝 Título: ${videoMetadata.title || "NULO"}`);
+  console.log(
+    `   📄 Descrição: ${
+      videoMetadata.description
+        ? "PRESENTE (" + videoMetadata.description.length + " chars)"
+        : "NULO"
+    }`
+  );
+  console.log(
+    `   👤 Autor: ${
+      videoMetadata.author || videoMetadata.channelTitle || "NULO"
+    }`
+  );
+  console.log(
+    `   🖼️  Thumbnail: ${
+      videoMetadata.thumbnail_url || videoMetadata.thumbnails?.high?.url
+        ? "PRESENTE"
+        : "NULO"
+    }`
+  );
+  console.log(
+    `   🔗 URL Thumbnail: ${
+      videoMetadata.thumbnail_url ||
+      videoMetadata.thumbnails?.high?.url ||
+      "N/A"
+    }`
+  );
+  console.log(`   ⏱️  Duração: ${videoMetadata.duration || "NULO"}`);
   console.log("📊".repeat(40) + "\n");
 
   return videoMetadata;
@@ -1015,12 +1156,28 @@ async function analyzeVideoContentWithAI(
   try {
     console.log("\n🤖 [AI Analysis]: Starting analysis...");
     console.log("   📦 Video Metadata Received:");
-    console.log(`      - Platform: ${videoMetadata?.platform || 'N/A'}`);
-    console.log(`      - Title: ${videoMetadata?.title || 'N/A'}`);
-    console.log(`      - Description: ${videoMetadata?.description ? videoMetadata.description.substring(0, 100) + '...' : 'NULL'}`);
-    console.log(`      - Author: ${videoMetadata?.author || videoMetadata?.channelTitle || 'N/A'}`);
-    console.log(`      - Thumbnail: ${videoMetadata?.thumbnail_url || videoMetadata?.thumbnails?.high?.url || 'NULL'}`);
-    
+    console.log(`      - Platform: ${videoMetadata?.platform || "N/A"}`);
+    console.log(`      - Title: ${videoMetadata?.title || "N/A"}`);
+    console.log(
+      `      - Description: ${
+        videoMetadata?.description
+          ? videoMetadata.description.substring(0, 100) + "..."
+          : "NULL"
+      }`
+    );
+    console.log(
+      `      - Author: ${
+        videoMetadata?.author || videoMetadata?.channelTitle || "N/A"
+      }`
+    );
+    console.log(
+      `      - Thumbnail: ${
+        videoMetadata?.thumbnail_url ||
+        videoMetadata?.thumbnails?.high?.url ||
+        "NULL"
+      }`
+    );
+
     const allExtractedLinks = extractAllProductLinksDirectly(
       videoLink,
       videoMetadata
@@ -1032,18 +1189,25 @@ async function analyzeVideoContentWithAI(
 
     // Se já temos metadados completos da API do YouTube, usar eles e complementar com IA
     // Instagram/Facebook/Vimeo NÃO tem description completa, então usar IA completa
-    const hasYouTubeData = videoMetadata?.platform === "youtube" || videoMetadata?.platform === "youtube-shorts";
-    const hasFullDescription = videoMetadata?.description && videoMetadata.description.length > 50;
+    const hasYouTubeData =
+      videoMetadata?.platform === "youtube" ||
+      videoMetadata?.platform === "youtube-shorts";
+    const hasFullDescription =
+      videoMetadata?.description && videoMetadata.description.length > 50;
 
     console.log(`   🔍 Analysis Mode Decision:`);
     console.log(`      - hasYouTubeData: ${hasYouTubeData}`);
     console.log(`      - hasFullDescription: ${hasFullDescription}`);
-    console.log(`      - Mode: ${hasYouTubeData && hasFullDescription ? 'YouTube Optimized' : 'Full AI Analysis'}`);
+    console.log(
+      `      - Mode: ${
+        hasYouTubeData && hasFullDescription
+          ? "YouTube Optimized"
+          : "Full AI Analysis"
+      }`
+    );
 
     if (hasYouTubeData && hasFullDescription) {
-      console.log(
-        "   ✅ Using YouTube API metadata + AI for tags and summary"
-      );
+      console.log("   ✅ Using YouTube API metadata + AI for tags and summary");
 
       // Usar IA para gerar tags e resumo conciso
       const summaryPrompt = `Analise este vídeo do YouTube e gere:
@@ -1134,15 +1298,19 @@ Regras para tags:
 
     // Se não tem dados da API, usar IA completa
     console.log("   ⚠️ Using full AI analysis (Instagram/Facebook/Vimeo mode)");
-    console.log(`      - Available Title: ${videoMetadata?.title || 'NULL'}`);
-    console.log(`      - Available Author: ${videoMetadata?.author || 'NULL'}`);
-    console.log(`      - Available Thumbnail: ${videoMetadata?.thumbnail_url || 'NULL'}`);
+    console.log(`      - Available Title: ${videoMetadata?.title || "NULL"}`);
+    console.log(`      - Available Author: ${videoMetadata?.author || "NULL"}`);
+    console.log(
+      `      - Available Thumbnail: ${videoMetadata?.thumbnail_url || "NULL"}`
+    );
 
     const prompt = `Analise este vídeo de ${videoMetadata.platform}:
 
 INFORMAÇÕES DISPONÍVEIS:
-- Título: ${videoMetadata?.title || 'Não disponível'}
-- Autor: ${videoMetadata?.author || videoMetadata?.channelTitle || 'Não disponível'}
+- Título: ${videoMetadata?.title || "Não disponível"}
+- Autor: ${
+      videoMetadata?.author || videoMetadata?.channelTitle || "Não disponível"
+    }
 - Plataforma: ${videoMetadata.platform}
 - Link: ${videoLink}
 
@@ -1174,7 +1342,8 @@ REGRAS PARA TAGS:
       messages: [
         {
           role: "system",
-          content: "Você é especialista em análise e categorização de vídeos de redes sociais.",
+          content:
+            "Você é especialista em análise e categorização de vídeos de redes sociais.",
         },
         { role: "user", content: prompt },
       ],
@@ -1188,17 +1357,34 @@ REGRAS PARA TAGS:
     );
 
     console.log("   ✅ AI Analysis Complete:");
-    console.log(`      - Generated Description: ${aiResult.description?.substring(0, 80)}...`);
+    console.log(
+      `      - Generated Description: ${aiResult.description?.substring(
+        0,
+        80
+      )}...`
+    );
     console.log(`      - Generated Tags: ${aiResult.tags?.length || 0}`);
     console.log(`      - Tags: ${JSON.stringify(aiResult.tags || [])}`);
 
     // Montar resposta final usando dados do oEmbed + IA
     const videoInfo: any = {
-      title: videoMetadata?.title || aiResult.title || `Vídeo do ${videoMetadata.platform}`,
-      description: aiResult.description || videoMetadata?.description || `Vídeo compartilhado no ${videoMetadata.platform}`,
-      fullDescription: videoMetadata?.fullDescription || aiResult.description || `Vídeo criado por ${videoMetadata?.author}`,
+      title:
+        videoMetadata?.title ||
+        aiResult.title ||
+        `Vídeo do ${videoMetadata.platform}`,
+      description:
+        aiResult.description ||
+        videoMetadata?.description ||
+        `Vídeo compartilhado no ${videoMetadata.platform}`,
+      fullDescription:
+        videoMetadata?.fullDescription ||
+        aiResult.description ||
+        `Vídeo criado por ${videoMetadata?.author}`,
       platform: videoMetadata?.platform || "outros",
-      thumbnail: videoMetadata?.thumbnail_url || videoMetadata?.thumbnails?.high?.url || null,
+      thumbnail:
+        videoMetadata?.thumbnail_url ||
+        videoMetadata?.thumbnails?.high?.url ||
+        null,
       duration: videoMetadata?.duration || null,
       category: aiResult.category || "Vídeo",
       tags: aiResult.tags || [
@@ -1214,11 +1400,13 @@ REGRAS PARA TAGS:
         "online",
       ],
       language: "pt-BR",
-      author: videoMetadata?.author || videoMetadata?.channelTitle || "Desconhecido",
+      author:
+        videoMetadata?.author || videoMetadata?.channelTitle || "Desconhecido",
       price: 0,
       isEducational: aiResult.isEducational || false,
       targetAudience: aiResult.targetAudience || "Geral",
-      mainTopic: aiResult.mainTopic || videoMetadata?.title || "Conteúdo de vídeo",
+      mainTopic:
+        aiResult.mainTopic || videoMetadata?.title || "Conteúdo de vídeo",
       hasProductMentions: linksWithTitles.length > 0,
       contentType: aiResult.contentType || "other",
       productAnalysis: {
@@ -1232,7 +1420,7 @@ REGRAS PARA TAGS:
     console.log("   📦 Final Video Info:");
     console.log(`      - Title: ${videoInfo.title}`);
     console.log(`      - Description: ${videoInfo.description}`);
-    console.log(`      - Thumbnail: ${videoInfo.thumbnail || 'NULL'}`);
+    console.log(`      - Thumbnail: ${videoInfo.thumbnail || "NULL"}`);
     console.log(`      - Tags: ${videoInfo.tags.length}`);
     console.log(`      - Author: ${videoInfo.author}`);
 
@@ -1300,10 +1488,7 @@ async function processVideoWithLLM(data: VideoProcessingJobData): Promise<any> {
 
   try {
     console.log("🔄 [STEP 2/2]: Analyzing content with AI...");
-    videoInfo = await analyzeVideoContentWithAI(
-      videoMetadata,
-      data.videoLink
-    );
+    videoInfo = await analyzeVideoContentWithAI(videoMetadata, data.videoLink);
     console.log("✅ [STEP 2/2]: AI analysis completed!\n");
   } catch (error: any) {
     console.error("❌ [STEP 2/2]: FAILED in AI analysis");
@@ -1318,12 +1503,22 @@ async function processVideoWithLLM(data: VideoProcessingJobData): Promise<any> {
   console.log(`   📊 FINAL RESULTS:`);
   console.log(`      - Platform: ${videoInfo.platform}`);
   console.log(`      - Title: ${videoInfo.title}`);
-  console.log(`      - Description: ${videoInfo.description?.substring(0, 100)}${videoInfo.description?.length > 100 ? '...' : ''}`);
+  console.log(
+    `      - Description: ${videoInfo.description?.substring(0, 100)}${
+      videoInfo.description?.length > 100 ? "..." : ""
+    }`
+  );
   console.log(`      - Author: ${videoInfo.author}`);
-  console.log(`      - Thumbnail: ${videoInfo.thumbnail ? '✅ Present' : '❌ Missing'}`);
+  console.log(
+    `      - Thumbnail: ${videoInfo.thumbnail ? "✅ Present" : "❌ Missing"}`
+  );
   console.log(`      - Tags: ${videoInfo.tags?.length || 0} tags`);
   console.log(`      - Tags List: ${JSON.stringify(videoInfo.tags || [])}`);
-  console.log(`      - Products Found: ${videoInfo.productAnalysis?.productsInfo?.length || 0}`);
+  console.log(
+    `      - Products Found: ${
+      videoInfo.productAnalysis?.productsInfo?.length || 0
+    }`
+  );
   console.log(`${"=".repeat(80)}\n`);
 
   return { videoInfo, videoLink: data.videoLink, userId: data.userId };
@@ -1338,14 +1533,18 @@ export const videoProcessingWorker = new Worker<VideoProcessingJobData>(
     // Promise de timeout
     const timeoutPromise = new Promise((_, reject) => {
       timeoutId = setTimeout(() => {
-        reject(new Error(`Job ${job.id} timeout after 120 seconds (2 minutes)`));
+        reject(
+          new Error(`Job ${job.id} timeout after 120 seconds (2 minutes)`)
+        );
       }, 120000); // 2 minutos
     });
 
     try {
       console.log("\n" + "🔥".repeat(40));
       console.log(
-        `🔄 [Worker]: JOB PICKED UP! Job ID: ${job.id} (Attempt ${job.attemptsMade + 1}/${job.opts.attempts || 3})`
+        `🔄 [Worker]: JOB PICKED UP! Job ID: ${job.id} (Attempt ${
+          job.attemptsMade + 1
+        }/${job.opts.attempts || 3})`
       );
       console.log(`   📝 Job Data:`, JSON.stringify(job.data, null, 2));
       console.log(`   ⏰ Started at: ${new Date().toISOString()}`);
@@ -1353,26 +1552,31 @@ export const videoProcessingWorker = new Worker<VideoProcessingJobData>(
       console.log("🔥".repeat(40) + "\n");
 
       // Race entre processamento e timeout
-      const result = await Promise.race([
+      const result = (await Promise.race([
         processVideoWithLLM(job.data),
-        timeoutPromise
-      ]) as any;
-      
+        timeoutPromise,
+      ])) as any;
+
       if (timeoutId) clearTimeout(timeoutId);
-      
+
       const duration = ((Date.now() - startTime) / 1000).toFixed(2);
-      
+
       console.log("\n" + "✨".repeat(40));
       console.log(`✅ [Worker]: JOB COMPLETED SUCCESSFULLY! Job ID: ${job.id}`);
       console.log(`   ⏱️  Duration: ${duration}s`);
       console.log("✨".repeat(40) + "\n");
-      
-      return { success: true, timestamp: new Date().toISOString(), result, duration: `${duration}s` };
+
+      return {
+        success: true,
+        timestamp: new Date().toISOString(),
+        result,
+        duration: `${duration}s`,
+      };
     } catch (error: any) {
       if (timeoutId) clearTimeout(timeoutId);
-      
+
       const duration = ((Date.now() - startTime) / 1000).toFixed(2);
-      
+
       console.error("\n" + "💥".repeat(40));
       console.error(`❌ [Worker]: JOB FAILED! Job ID: ${job.id}`);
       console.error(`   ⏱️  Duration: ${duration}s`);
@@ -1384,8 +1588,8 @@ export const videoProcessingWorker = new Worker<VideoProcessingJobData>(
       throw error; // Re-throw para o BullMQ fazer retry
     }
   },
-  { 
-    connection: redisConnection, 
+  {
+    connection: redisConnection,
     concurrency: 1, // REDUZIR PARA 1 para debugar Instagram
     removeOnComplete: { count: 100 },
     removeOnFail: { count: 100 },
@@ -1415,13 +1619,15 @@ videoProcessingWorker.on("active", (job) => {
 });
 
 videoProcessingWorker.on("stalled", (jobId) => {
-  console.error(`\n⚠️ [Event]: Job ${jobId} STALLED! Worker may have crashed while processing.`);
+  console.error(
+    `\n⚠️ [Event]: Job ${jobId} STALLED! Worker may have crashed while processing.`
+  );
 });
 
 // Verificar conexão do Redis
 console.log("\n" + "🔌".repeat(40));
 console.log("🔌 [WORKER INITIALIZATION]: Verificando conexão...");
-console.log(`   Redis Host: ${redisConnection.options.host || 'default'}`);
+console.log(`   Redis Host: ${redisConnection.options.host || "default"}`);
 console.log(`   Redis Port: ${redisConnection.options.port || 6379}`);
 console.log(`   Concurrency: 1 (only 1 job at time for debugging)`);
 console.log("🔌".repeat(40));

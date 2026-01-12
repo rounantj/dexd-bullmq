@@ -58,10 +58,14 @@ export async function markPaymentAsProcessed(
   jobId: string
 ): Promise<void> {
   const key = `${IDEMPOTENCY_PREFIX}${paymentId}:${event}`;
-  await redisConnection.setex(key, IDEMPOTENCY_TTL, JSON.stringify({
-    jobId,
-    processedAt: new Date().toISOString(),
-  }));
+  await redisConnection.setex(
+    key,
+    IDEMPOTENCY_TTL,
+    JSON.stringify({
+      jobId,
+      processedAt: new Date().toISOString(),
+    })
+  );
 }
 
 /**
@@ -78,7 +82,7 @@ export async function getProcessedPaymentInfo(
 
 /**
  * Fila dedicada para processamento de webhooks de pagamento da Asaas
- * 
+ *
  * Objetivo: Garantir que NENHUMA notificação da Asaas seja perdida
  * - Resposta imediata 200 OK para a Asaas
  * - Processamento assíncrono com retentativas
@@ -110,4 +114,3 @@ export const paymentProcessingQueue = new Queue<PaymentWebhookJobData>(
 console.log("💳 Payment Processing Queue criada com sucesso!");
 console.log("   └── 10 tentativas com backoff exponencial");
 console.log("   └── Persistência: 7 dias (sucesso), 30 dias (falha)");
-

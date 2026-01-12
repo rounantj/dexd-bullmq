@@ -20,7 +20,9 @@ async function processPaymentWebhook(
   console.log(`   💰 Payment ID: ${data.payment?.id}`);
   console.log(`   💵 Value: R$ ${data.payment?.value?.toFixed(2)}`);
   console.log(`   📋 Status: ${data.payment?.status}`);
-  console.log(`   🔗 External Ref: ${data.payment?.externalReference || "N/A"}`);
+  console.log(
+    `   🔗 External Ref: ${data.payment?.externalReference || "N/A"}`
+  );
   console.log(`   ⏰ Received At: ${data.receivedAt}`);
   console.log("💳".repeat(40) + "\n");
 
@@ -75,7 +77,7 @@ async function processPaymentWebhook(
 
 /**
  * Worker dedicado para processamento de webhooks de pagamento da Asaas
- * 
+ *
  * Características:
  * - Concorrência 5 (processa até 5 webhooks em paralelo)
  * - 10 tentativas com backoff exponencial
@@ -109,9 +111,7 @@ export const paymentProcessingWorker = new Worker<PaymentWebhookJobData>(
       const duration = ((Date.now() - startTime) / 1000).toFixed(2);
 
       console.log("\n" + "✨".repeat(40));
-      console.log(
-        `✨ [Payment Worker]: JOB COMPLETED! Job ID: ${job.id}`
-      );
+      console.log(`✨ [Payment Worker]: JOB COMPLETED! Job ID: ${job.id}`);
       console.log(`   ⏱️  Duration: ${duration}s`);
       console.log("✨".repeat(40) + "\n");
 
@@ -127,7 +127,9 @@ export const paymentProcessingWorker = new Worker<PaymentWebhookJobData>(
       console.error("\n" + "💥".repeat(40));
       console.error(`💥 [Payment Worker]: JOB FAILED! Job ID: ${job.id}`);
       console.error(`   ⏱️  Duration: ${duration}s`);
-      console.error(`   ❌ Attempt: ${job.attemptsMade + 1}/${job.opts.attempts || 10}`);
+      console.error(
+        `   ❌ Attempt: ${job.attemptsMade + 1}/${job.opts.attempts || 10}`
+      );
       console.error(`   ❌ Error: ${error.message}`);
       console.error("💥".repeat(40) + "\n");
 
@@ -136,7 +138,9 @@ export const paymentProcessingWorker = new Worker<PaymentWebhookJobData>(
         console.error("⚠️ [ALERTA]: Job com muitas falhas consecutivas!");
         console.error(`   Payment ID: ${job.data.payment?.id}`);
         console.error(`   Event: ${job.data.event}`);
-        console.error(`   External Ref: ${job.data.payment?.externalReference}`);
+        console.error(
+          `   External Ref: ${job.data.payment?.externalReference}`
+        );
       }
 
       throw error; // Re-throw para o BullMQ fazer retry
@@ -162,7 +166,9 @@ paymentProcessingWorker.on("failed", (job, err) => {
   console.error(`   Event: ${job?.data?.event}`);
   console.error(`   Payment: ${job?.data?.payment?.id}`);
   console.error(`   Error: ${err.message}`);
-  console.error(`   Attempts: ${job?.attemptsMade}/${job?.opts?.attempts || 10}`);
+  console.error(
+    `   Attempts: ${job?.attemptsMade}/${job?.opts?.attempts || 10}`
+  );
 });
 
 paymentProcessingWorker.on("error", (err) => {
@@ -191,4 +197,3 @@ console.log("💳".repeat(40) + "\n");
 
 console.log("💳 Payment Processing Worker started!");
 console.log("✅ Worker is ready and listening for payment webhooks...\n");
-
