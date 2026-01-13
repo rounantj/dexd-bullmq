@@ -105,13 +105,35 @@ async function fetchYouTubeMetadata(url: string): Promise<any> {
 
     const response = await axios.get(apiUrl.toString());
 
-    console.log("🔍 [Worker]: YouTube metadata response:", response.data);
+    console.log("\n" + "📺".repeat(40));
+    console.log("🔍 [Worker]: YouTube metadata response COMPLETA:");
+    console.log("📺".repeat(40));
+    console.log(JSON.stringify(response.data, null, 2));
+    console.log("📺".repeat(40) + "\n");
 
     if (response.data?.items && response.data.items.length > 0) {
       const video = response.data.items[0];
       const snippet = video.snippet;
       const statistics = video.statistics;
       const contentDetails = video.contentDetails;
+
+      console.log("\n" + "📋".repeat(40));
+      console.log("📋 [YouTube]: SNIPPET (detalhes do vídeo):");
+      console.log("📋".repeat(40));
+      console.log(JSON.stringify(snippet, null, 2));
+      console.log("📋".repeat(40) + "\n");
+
+      console.log("\n" + "📊".repeat(40));
+      console.log("📊 [YouTube]: STATISTICS (estatísticas):");
+      console.log("📊".repeat(40));
+      console.log(JSON.stringify(statistics, null, 2));
+      console.log("📊".repeat(40) + "\n");
+
+      console.log("\n" + "⏱️".repeat(40));
+      console.log("⏱️ [YouTube]: CONTENT DETAILS (detalhes do conteúdo):");
+      console.log("⏱️".repeat(40));
+      console.log(JSON.stringify(contentDetails, null, 2));
+      console.log("⏱️".repeat(40) + "\n");
 
       console.log(
         `✅ [Worker]: YouTube metadata fetched for video: ${snippet.title}`
