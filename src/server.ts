@@ -1,4 +1,5 @@
 import express, { Request, Response, NextFunction } from "express";
+import { timingSafeEqual } from "crypto";
 import { createBullBoard } from "@bull-board/api";
 import { BullMQAdapter } from "@bull-board/api/bullMQAdapter";
 import { ExpressAdapter } from "@bull-board/express";
@@ -32,12 +33,34 @@ const app = express();
 // ═══════════════════════════════════════════════════════════════════════════
 
 const BULL_BOARD_USER = process.env.BULL_BOARD_USER || "admin";
-const BULL_BOARD_PASSWORD = process.env.BULL_BOARD_PASSWORD || "dexd@2025";
+// Sem senha configurada o dashboard fica desligado (nada de senha padrão).
+const BULL_BOARD_PASSWORD = process.env.BULL_BOARD_PASSWORD?.trim() || "";
+const WORKER_SECRET = process.env.WORKER_SECRET?.trim() || "";
+
+/** Comparação em tempo constante; vazio nunca é válido. */
+function safeEqual(received?: string | null, expected?: string | null): boolean {
+  if (!received || !expected) return false;
+  const a = Buffer.from(received);
+  const b = Buffer.from(expected);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
+/** Rotas /api/* só aceitam chamadas da dexd-api (header X-Worker-Secret). */
+function requireWorkerSecret(req: Request, res: Response, next: NextFunction) {
+  if (!safeEqual(req.header("x-worker-secret"), WORKER_SECRET)) {
+    return res.status(401).json({ success: false, error: "Unauthorized" });
+  }
+  return next();
+}
 
 /**
  * Middleware de autenticação básica (Basic Auth)
  */
 function basicAuth(req: Request, res: Response, next: NextFunction) {
+  if (!BULL_BOARD_PASSWORD) {
+    return res.status(503).json({ error: "Dashboard desativado: defina BULL_BOARD_PASSWORD" });
+  }
+
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith("Basic ")) {
@@ -50,10 +73,12 @@ function basicAuth(req: Request, res: Response, next: NextFunction) {
   const credentials = Buffer.from(base64Credentials, "base64").toString(
     "utf-8"
   );
-  const [username, password] = credentials.split(":");
+  const separator = credentials.indexOf(":");
+  const username = credentials.slice(0, separator);
+  const password = credentials.slice(separator + 1);
 
   // Verificar credenciais
-  if (username === BULL_BOARD_USER && password === BULL_BOARD_PASSWORD) {
+  if (separator > 0 && safeEqual(username, BULL_BOARD_USER) && safeEqual(password, BULL_BOARD_PASSWORD)) {
     return next();
   }
 
@@ -63,6 +88,11 @@ function basicAuth(req: Request, res: Response, next: NextFunction) {
 
 // Middleware para parsear JSON
 app.use(express.json());
+app.use("/api", requireWorkerSecret);
+
+if (!WORKER_SECRET) {
+  console.error("🚨 WORKER_SECRET não configurado: rotas /api/* recusarão todas as chamadas.");
+}
 
 // Porta dinâmica para Heroku, ou 5050 localmente
 const PORT = process.env.PORT || 5050;
@@ -512,9 +542,11 @@ app.get("/api/payment-processing/stats", async (req, res) => {
 // Montar o Bull Board COM AUTENTICAÇÃO
 app.use("/admin/queues", basicAuth, serverAdapter.getRouter());
 
-console.log(`🔐 Bull Board protegido com autenticação básica`);
-console.log(`   User: ${BULL_BOARD_USER}`);
-console.log(`   Password: ${"*".repeat(BULL_BOARD_PASSWORD.length)}`);
+console.log(
+  BULL_BOARD_PASSWORD
+    ? `🔐 Bull Board protegido com autenticação básica (usuário: ${BULL_BOARD_USER})`
+    : "🔒 Bull Board desativado: defina BULL_BOARD_PASSWORD para habilitar"
+);
 
 // Iniciar servidor
 app.listen(PORT, () => {

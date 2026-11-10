@@ -42,6 +42,7 @@ async function processPaymentWebhook(
           "Content-Type": "application/json",
           "X-Internal-Worker": "payment-processing-worker",
           "X-Queue-Job": "true",
+          "X-Worker-Secret": process.env.WORKER_SECRET?.trim() || "",
         },
       }
     );
